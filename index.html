@@ -112,10 +112,30 @@
   .train-card.done{opacity:.4;pointer-events:none;}
   .train-card .tc-del{
     position:absolute;top:4px;right:6px;font-size:12px;color:#c4958a;
-    cursor:pointer;z-index:2;opacity:0;transition:opacity .2s;
+    cursor:pointer;z-index:2;
   }
-  .train-card:hover .tc-del,.train-card:active .tc-del{opacity:1;}
-  .tc-del:hover{color:#e05050;}
+  .train-card .tc-actions{
+    position:absolute;top:2px;right:4px;display:flex;gap:3px;
+    opacity:0;transition:opacity .2s;z-index:2;
+  }
+  .train-card:hover .tc-actions,.train-card:active .tc-actions{opacity:1;}
+  .tc-edit,.tc-hide,.tc-del{
+    font-size:11px;cursor:pointer;width:18px;height:18px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:50%;background:rgba(0,0,0,.05);
+    color:#8b7e9a;transition:all .2s;
+  }
+  .tc-edit:hover{background:#9dd9c8;color:#fff;}
+  .tc-hide:hover{background:#e8c170;color:#fff;}
+  .tc-del:hover{background:#e88d9e;color:#fff;}
+  
+  .undo-btn{
+    cursor:pointer;font-size:10px;color:#c4958a;padding:1px 6px;
+    border-radius:8px;background:rgba(0,0,0,.03);transition:all .2s;
+    margin-left:6px;opacity:0;
+  }
+  .log-row:hover .undo-btn,.hist-row:hover .undo-btn{opacity:1;}
+  .undo-btn:hover{background:#e88d9e;color:#fff;}
 
   /* add custom btn */
   .add-custom{
@@ -257,6 +277,7 @@
     <span style="font-size:11px;color:#9b8eaa;cursor:pointer;font-weight:600;" onclick="exportSave()">📤 导出</span>
     <span style="font-size:11px;color:#9b8eaa;cursor:pointer;font-weight:600;" onclick="document.getElementById('importFile').click()">📥 导入</span>
     <span style="font-size:11px;color:#c4958a;cursor:pointer;font-weight:600;" onclick="resetAll()">🔄 重置</span>
+    <span style="font-size:11px;color:#8b7e9a;cursor:pointer;font-weight:600;" onclick="showHiddenPanel()">👁 恢复隐藏</span>
   </div>
   <input type="file" id="importFile" accept=".json" style="display:none" onchange="importSave(event)">
 </div>
@@ -354,7 +375,7 @@ function cl(v){return Math.max(0,Math.min(100,v));}
 const SYNC_URL='https://jsonblob.com/api/jsonBlob/019df7b8-bb4b-7eaa-a1e2-2d93d6519b9f';
 let _syncTimer=null;
 function ld(){
-  const D={stats:{learn:0,health:0,will:0,happy:0},gold:0,week:1,done:{},hist:[],last:'',custom:[],owned:[],equipped:{}};
+  const D={stats:{learn:0,health:0,will:0,happy:0},gold:0,week:1,done:{},hist:[],last:'',custom:[],owned:[],equipped:{},hidden:[],edited:{}};
   try{const r=JSON.parse(localStorage.getItem('mf2')||'{}');return{...D,...r,stats:{...D.stats,...(r.stats||{})},equipped:{...(r.equipped||{})}};}catch{return D;}
 }
 function sv(){localStorage.setItem('mf2',JSON.stringify(S));debounceSync();}
@@ -412,7 +433,6 @@ function renderChar(){
 function renderTraining(){
   const A=document.getElementById('trainArea');A.innerHTML='';
   CATEGORIES.forEach(cat=>{
-    const all=[...cat.actions,...S.custom.filter(x=>x.cat===cat.id)];
     const d=document.createElement('div');
     d.innerHTML=`
       <div class="cat-title">${cat.title}</div>
@@ -430,6 +450,7 @@ function renderTraining(){
       form.id='form-'+cat.id;
       form.innerHTML=`
         <input id="cf-name-${cat.id}" placeholder="训练名称…">
+        <input type="hidden" id="cf-editid-${cat.id}" value="">
         <select id="cf-icon-${cat.id}">
           <option value="📌">📌 标记</option><option value="📝">📝 笔记</option><option value="💡">💡 灵感</option>
           <option value="🎯">🎯 目标</option><option value="🔥">🔥 挑战</option><option value="🌟">🌟 星星</option>
@@ -449,42 +470,84 @@ function renderTraining(){
       A.appendChild(form);
     }
     const grid=document.getElementById('grid-'+cat.id);
-    grid.innerHTML=all.map(a=>{
-      const done=S.done[a.id]||0;
-      const isCustom=!!a._custom;
-      return `<div class="train-card${done>0&&a.single?' done':''}" style="--c:${cat.color}" onclick="train('${a.id}')">
-        ${isCustom?`<span class="tc-del" onclick="event.stopPropagation();delCustom('${a.id}')">✕</span>`:''}
-        <span class="tc-icon">${a.icon}</span>
-        <span class="tc-label">${a.label}</span>
-        <div class="tc-info">
-          ${Object.entries(a.s||{}).filter(([,v])=>v!==0).map(([k,v])=>`<span>${({learn:'📚',health:'💪',will:'⚡',happy:'💖'})[k]}${v>0?'+':''}${v}</span>`).join('')}
-          <span>🪙${a.g>0?'+':''}${a.g}</span>
-        </div>
-      </div>`;
-    }).join('');
+    const defaults=cat.actions.filter(a=>!S.hidden.includes(a.id));
+    const customs=S.custom.filter(x=>x.cat===cat.id);
+    const all=[...defaults,...customs];
+    if(all.length===0){
+      grid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:#9b8eaa;font-size:11px;padding:8px;">（已全部隐藏，点下方添加自定义或重置）</div>';
+    } else {
+      grid.innerHTML=all.map(a=>{
+        const done=S.done[a.id]||0;
+        const isCustom=!!a._custom;
+        const edited=S.edited[a.id];
+        const eff=edited||(a.s||{});
+        const g=edited&&edited.g!==undefined?edited.g:(a.g||0);
+        return `<div class="train-card${done>0&&a.single?' done':''}" style="--c:${cat.color};position:relative;" onclick="train('${a.id}')">
+          <div class="tc-actions">
+            <span class="tc-edit" onclick="event.stopPropagation();startEdit('${a.id}','${cat.id}')" title="编辑">✎</span>
+            ${!isCustom?`<span class="tc-hide" onclick="event.stopPropagation();hideAction('${a.id}')" title="隐藏">−</span>`:''}
+            ${isCustom?`<span class="tc-del" onclick="event.stopPropagation();delCustom('${a.id}')" title="删除">✕</span>`:''}
+          </div>
+          <span class="tc-icon">${a.icon}</span>
+          <span class="tc-label">${a.label}${edited?' *':''}</span>
+          <div class="tc-info">
+            ${Object.entries(eff).filter(([,v])=>v!==0).map(([k,v])=>`<span>${({learn:'📚',health:'💪',will:'⚡',happy:'💖'})[k]}${v>0?'+':''}${v}</span>`).join('')}
+            <span>🪙${g>0?'+':''}${g}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
   });
 }
 
 function showCustomForm(cat){document.getElementById('form-'+cat).classList.add('show');}
-function hideCustomForm(cat){document.getElementById('form-'+cat).classList.remove('show');}
+function hideCustomForm(cat){document.getElementById('form-'+cat).classList.remove('show');document.getElementById('cf-editid-'+cat).value='';}
+
+function startEdit(id,catId){
+  const all=[...CATEGORIES.flatMap(c=>c.actions),...S.custom];
+  const a=all.find(x=>x.id===id);if(!a) return;
+  const edited=S.edited[id];
+  const eff=edited||(a.s||{});
+  const g=edited&&edited.g!==undefined?edited.g:(a.g||0);
+  document.getElementById('cf-editid-'+catId).value=id;
+  document.getElementById('cf-name-'+catId).value=a.label||'';
+  document.getElementById('cf-icon-'+catId).value=a.icon||'📌';
+  document.getElementById('cf-learn-'+catId).value=eff.learn||0;
+  document.getElementById('cf-health-'+catId).value=eff.health||0;
+  document.getElementById('cf-will-'+catId).value=eff.will||0;
+  document.getElementById('cf-happy-'+catId).value=eff.happy||0;
+  document.getElementById('cf-gold-'+catId).value=g;
+  showCustomForm(catId);
+}
+
+function hideAction(id){
+  if(!S.hidden.includes(id)){S.hidden.push(id);sv();renderTraining();toast('已隐藏 👁');}
+}
 
 function saveCustom(cat){
+  const editId=document.getElementById('cf-editid-'+cat).value;
   const name=document.getElementById('cf-name-'+cat).value.trim();
   if(!name){toast('请输入名称～');return;}
   const icon=document.getElementById('cf-icon-'+cat).value;
-  const s={
-    learn:parseInt(document.getElementById('cf-learn-'+cat).value)||0,
-    health:parseInt(document.getElementById('cf-health-'+cat).value)||0,
-    will:parseInt(document.getElementById('cf-will-'+cat).value)||0,
-    happy:parseInt(document.getElementById('cf-happy-'+cat).value)||0,
-  };
+  const s={learn:parseInt(document.getElementById('cf-learn-'+cat).value)||0,health:parseInt(document.getElementById('cf-health-'+cat).value)||0,will:parseInt(document.getElementById('cf-will-'+cat).value)||0,happy:parseInt(document.getElementById('cf-happy-'+cat).value)||0};
   const g=parseInt(document.getElementById('cf-gold-'+cat).value)||5;
-  const id='cust_'+Date.now();
-  S.custom.push({id,icon,label:name,s,g,cat,_custom:true});
-  sv();
-  hideCustomForm(cat);
-  renderTraining();
-  toast('自定义训练已添加 ✨');
+  
+  if(editId){
+    const all=[...CATEGORIES.flatMap(c=>c.actions),...S.custom];
+    const a=all.find(x=>x.id===editId);
+    if(a&&a._custom){
+      const idx=S.custom.findIndex(x=>x.id===editId);
+      if(idx>=0){S.custom[idx]={...S.custom[idx],icon,label:name,s,g};}
+    } else {
+      S.edited[editId]={...s,g};
+    }
+    toast('已更新 ✅');
+  } else {
+    const id='cust_'+Date.now();
+    S.custom.push({id,icon,label:name,s,g,cat,_custom:true});
+    toast('自定义训练已添加 ✨');
+  }
+  sv();hideCustomForm(cat);renderTraining();
 }
 
 function delCustom(id){
@@ -573,14 +636,76 @@ function renderSummary(){
   const items=[];all.forEach(a=>{const n=S.done[a.id]||0;if(n>0) items.push({...a,count:n});});
   const ll=document.getElementById('logList');
   if(!items.length){ll.innerHTML='<div style="text-align:center;color:#9b8eaa;padding:12px;font-size:12px;font-weight:600;">今天还没有训练哦 🌱</div>';}
-  else{ll.innerHTML=items.map(i=>`<div class="log-row"><span>${i.icon} ${i.label}${i.count>1?` ×${i.count}`:''}</span><span style="color:#9dd9c8;font-weight:800;">完成</span></div>`).join('');}
+  else{ll.innerHTML=items.map(i=>`<div class="log-row"><span>${i.icon} ${i.label}${i.count>1?` ×${i.count}`:''}</span><div><span style="color:#9dd9c8;font-weight:800;">完成</span><span class="undo-btn" onclick="undoToday('${i.id}')">↩ 撤销</span></div></div>`).join('');}
 }
 
 function renderHistory(){
   const items=[...(S.hist||[])].reverse().slice(0,40);
   document.getElementById('histArea').innerHTML=!items.length
     ?'<div style="text-align:center;color:#9b8eaa;padding:20px;font-size:13px;font-weight:600;">还没有任何记录 👣</div>'
-    :items.map(h=>`<div class="hist-row"><div><span>${h.icon} ${h.label}</span><span class="hist-time">${h.time}</span></div><span style="font-weight:800;color:${h.good?'#9dd9c8':'#e88d9e'}">${h.good?'+'+h.gold:h.gold}</span></div>`).join('');
+    :items.map((h,i)=>`<div class="hist-row"><div><span>${h.icon} ${h.label}</span><span class="hist-time">${h.time}</span></div><div><span style="font-weight:800;color:${h.good?'#9dd9c8':'#e88d9e'}">${h.good?'+'+h.gold:h.gold}</span><span class="undo-btn" onclick="undoHist(${i})">↩ 撤销</span></div></div>`).join('');
+}
+
+// ── UNDO ──
+function undoToday(id){
+  if(!confirm('撤销这条训练记录？')) return;
+  const all=[...CATEGORIES.flatMap(c=>c.actions),...S.custom];
+  const a=all.find(x=>x.id===id);if(!a) return;
+  const count=S.done[id]||0;
+  if(count>0){
+    S.done[id]=count-1;
+    const edited=S.edited[id];
+    const eff=edited||(a.s||{});
+    const g=edited&&edited.g!==undefined?edited.g:(a.g||0);
+    S.gold-=(g||0);
+    Object.entries(eff).forEach(([k,v])=>{S.stats[k]=cl((S.stats[k]||0)-v);});
+  }
+  // Remove last matching hist entry
+  for(let i=(S.hist||[]).length-1;i>=0;i--){
+    if(S.hist[i].id===id){S.hist.splice(i,1);break;}
+  }
+  sv();renderAll();toast('已撤销 ↩');
+}
+
+function undoHist(i){
+  if(!confirm('撤销这条记录？')) return;
+  const all=[...CATEGORIES.flatMap(c=>c.actions),...S.custom];
+  const h=(S.hist||[]).reverse()[i];
+  if(!h) return;
+  
+  if(h.id){
+    // It's a training action
+    const a=all.find(x=>x.id===h.id);
+    if(a){
+      const count=S.done[h.id]||0;
+      if(count>0){
+        S.done[h.id]=count-1;
+        const edited=S.edited[h.id];
+        const eff=edited||(a.s||{});
+        Object.entries(eff).forEach(([k,v])=>{S.stats[k]=cl((S.stats[k]||0)-v);});
+        S.gold-=(h.gold||0);
+      }
+    }
+  } else {
+    // It's a shop purchase - just reverse gold
+    S.gold-=(h.gold||0);
+  }
+  
+  // Remove the specific hist entry
+  const idx=(S.hist||[]).length-1-i;
+  S.hist.splice(idx,1);
+  sv();renderAll();toast('已撤销 ↩');
+}
+
+function showHiddenPanel(){
+  if(!S.hidden.length){toast('没有隐藏的训练哦');return;}
+  const items=S.hidden.map(id=>{
+    const all=[...CATEGORIES.flatMap(c=>c.actions),...S.custom];
+    const a=all.find(x=>x.id===id);
+    return a?`${a.icon} ${a.label} (${id})`:id;
+  });
+  if(!confirm('恢复隐藏的训练？\n\n'+items.join('\n'))) return;
+  S.hidden=[];sv();renderTraining();toast('已全部恢复 ✅');
 }
 
 // ── TRAIN ──
@@ -591,9 +716,12 @@ function train(id){
   const a=all.find(x=>x.id===id);if(!a) return;
   if(a.single&&(S.done[id]||0)>0) return;
   S.done[id]=(S.done[id]||0)+1;
-  S.gold+=a.g||0;
-  Object.entries(a.s||{}).forEach(([k,v])=>{S.stats[k]=cl((S.stats[k]||0)+v);});
-  S.hist.push({icon:a.icon,label:a.label,good:(a.g||0)>=0,gold:a.g,time:now()});
+  const edited=S.edited[id];
+  const eff=edited||(a.s||{});
+  const g=edited&&edited.g!==undefined?edited.g:(a.g||0);
+  S.gold+=g;
+  Object.entries(eff).forEach(([k,v])=>{S.stats[k]=cl((S.stats[k]||0)+v);});
+  S.hist.push({id:id,icon:a.icon,label:a.label,good:g>=0,gold:g,time:now(),s:{...eff}});
   sv();toast(a.g<0?`${a.icon} 诚实记录…`:`${a.icon} 训练完成！`);
   if(a.g>=0) confetti();
   renderAll();
