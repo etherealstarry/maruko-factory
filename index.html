@@ -351,26 +351,30 @@ const ENDS=[
 function cl(v){return Math.max(0,Math.min(100,v));}
 
 // ── STATE ──
-const SYNC_URL=location.origin.replace('http://','http://').replace(/:\d+$/,'')+':8888';
+const SYNC_URL='https://jsonblob.com/api/jsonBlob/019df7b8-bb4b-7eaa-a1e2-2d93d6519b9f';
+let _syncTimer=null;
 function ld(){
   const D={stats:{learn:0,health:0,will:0,happy:0},gold:0,week:1,done:{},hist:[],last:'',custom:[],owned:[],equipped:{}};
   try{const r=JSON.parse(localStorage.getItem('mf2')||'{}');return{...D,...r,stats:{...D.stats,...(r.stats||{})},equipped:{...(r.equipped||{})}};}catch{return D;}
 }
-function sv(){localStorage.setItem('mf2',JSON.stringify(S));syncToServer();}
+function sv(){localStorage.setItem('mf2',JSON.stringify(S));debounceSync();}
+function debounceSync(){clearTimeout(_syncTimer);_syncTimer=setTimeout(syncToServer,600);}
 async function syncToServer(){
-  try{await fetch(SYNC_URL+'/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(S)});}
+  S._syncedAt=Date.now();
+  try{await fetch(SYNC_URL,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(S)});}
   catch(e){}
 }
 async function syncFromServer(){
   try{
-    const r=await fetch(SYNC_URL+'/load');
-    const serverData=await r.json();
-    if(serverData&&serverData.stats&&serverData.last){
-      const localLast=S.last||'';
-      if(serverData.last>=localLast){
-        S={...S,...serverData,stats:{...S.stats,...(serverData.stats||{})},equipped:{...(serverData.equipped||{})}};
-        sv();
-      }
+    const r=await fetch(SYNC_URL,{headers:{'Accept':'application/json'}});
+    if(!r.ok) return;
+    const cloud=await r.json();
+    if(!cloud||!cloud.stats) return;
+    const cloudTime=cloud._syncedAt||0;
+    const localTime=S._syncedAt||0;
+    if(cloudTime>localTime){
+      S={...S,...cloud,stats:{...S.stats,...(cloud.stats||{})},equipped:{...(cloud.equipped||{})},_syncedAt:cloudTime};
+      localStorage.setItem('mf2',JSON.stringify(S));
     }
   }catch(e){}
 }
@@ -641,7 +645,7 @@ function importSave(e){
   };
   reader.readAsText(file);e.target.value='';
 }
-function syncNow(){syncToServer().then(()=>syncFromServer()).then(()=>{renderAll();toast('同步完成 🔄');}).catch(()=>toast('同步失败，不在同一网络 ⚠️'));}
+function syncNow(){syncToServer().then(()=>syncFromServer()).then(()=>{renderAll();toast('☁️ 同步完成');}).catch(()=>toast('网络不太好，稍后重试 ⚠️'));}
 function renderAll(){renderStats();renderChar();renderTraining();renderShop();renderSummary();renderHistory();}
 dc();renderAll();syncFromServer().then(()=>renderAll());
 </script>
