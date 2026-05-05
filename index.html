@@ -398,9 +398,11 @@ async function syncToServer(){
 }
 async function syncFromServer(){
   try{
-    const r=await fetch('https://raw.githubusercontent.com/etherealstarry/maruko-factory/main/save.json',{cache:'no-store'});
+    const T=window._ST;
+    const r=await fetch(SYNC_URL+'?ref=main&_='+Date.now(),{headers:{Authorization:'Bearer '+T},cache:'no-store'});
     if(!r.ok) return;
-    const cloud=await r.json();
+    const info=await r.json();
+    const cloud=JSON.parse(decodeURIComponent(escape(atob(info.content))));
     if(!cloud||!cloud.stats) return;
     const cloudTime=cloud._syncedAt||0;
     const localTime=S._syncedAt||0;
