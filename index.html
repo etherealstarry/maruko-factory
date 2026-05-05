@@ -398,7 +398,7 @@ async function syncToServer(){
 }
 async function syncFromServer(){
   try{
-    const r=await fetch('save.json',{headers:{'Cache-Control':'no-cache'}});
+    const r=await fetch('https://raw.githubusercontent.com/etherealstarry/maruko-factory/main/save.json',{cache:'no-store'});
     if(!r.ok) return;
     const cloud=await r.json();
     if(!cloud||!cloud.stats) return;
