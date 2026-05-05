@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>丸子梦工厂</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+    background:#2b1b3d;
+    min-height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    padding:12px;
+    -webkit-tap-highlight-color:transparent;user-select:none;
+  }
+  .game{
+    width:100%;max-width:420px;
+    background:linear-gradient(180deg,#faf5f0 0%,#f5efe8 100%);
+    border-radius:28px;overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);position:relative;
+  }
+
+  /* topbar */
+  .topbar{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:14px 20px;background:linear-gradient(180deg,rgba(0,0,0,.03),transparent);
+  }
+  .topbar .week{font-size:12px;font-weight:700;color:#8b7e9a;}
+  .topbar .gold{display:flex;align-items:center;gap:5px;font-size:16px;font-weight:900;color:#c4923a;}
+  .topbar .gold .coin{font-size:20px;}
+
+  /* room */
+  .room{position:relative;height:220px;background:linear-gradient(180deg,#e8e0f0 0%,#f0ece6 40%,#ede4d5 100%);overflow:hidden;}
+  .room-wall{position:absolute;top:0;left:0;right:0;height:65%;background:linear-gradient(180deg,#f5f0e8,#ede6da);}
+  .room-floor{position:absolute;bottom:0;left:0;right:0;height:35%;background:linear-gradient(180deg,#d4c5ab,#c4b595);}
+  .window{position:absolute;top:20px;left:22px;width:64px;height:76px;background:linear-gradient(180deg,#c9e4f7,#a8d4f0);border-radius:8px;border:4px solid #e8dfd0;box-shadow:inset 0 0 20px rgba(255,255,255,.4);}
+  .bookshelf{position:absolute;top:24px;right:20px;width:50px;height:64px;background:#d4c5b5;border-radius:4px 4px 0 0;display:flex;flex-direction:column;gap:2px;padding:4px;box-shadow:0 2px 6px rgba(0,0,0,.1);}
+  .bookshelf span{display:block;height:8px;border-radius:1px;}
+  .desk{position:absolute;bottom:18px;right:24px;width:72px;height:34px;background:#c4a882;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,.1);}
+
+  .character{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:transform .4s cubic-bezier(.34,1.56,.64,1);}
+  .character:active{transform:translateX(-50%) scale(.9);}
+  .char-body{
+    width:72px;height:90px;border-radius:40px 40px 24px 24px;
+    display:flex;align-items:center;justify-content:center;font-size:36px;position:relative;
+    animation:charFloat 3s ease-in-out infinite;
+    box-shadow:0 4px 16px rgba(0,0,0,.08);
+    background:var(--skin,#fde4cf);
+  }
+  .char-outfit{position:absolute;bottom:0;left:0;right:0;height:50%;border-radius:0 0 24px 24px;pointer-events:none;transition:background .4s;}
+  .char-eyes{position:absolute;top:28px;left:50%;transform:translateX(-50%);display:flex;gap:14px;pointer-events:none;z-index:2;}
+  .char-eyes .eye{width:7px;height:8px;background:#4a3525;border-radius:50%;animation:blink 4s ease-in-out infinite;}
+  .char-mouth{position:absolute;top:40px;left:50%;transform:translateX(-50%);width:10px;height:5px;border-bottom:2px solid #d4957a;border-radius:0 0 6px 6px;pointer-events:none;z-index:2;}
+  @keyframes blink{0%,95%,100%{transform:scaleY(1);}97%{transform:scaleY(.1);}}
+  .char-hat{position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:22px;pointer-events:none;transition:all .4s;}
+  .char-glasses{position:absolute;top:28px;left:50%;transform:translateX(-50%);font-size:20px;pointer-events:none;transition:all .4s;letter-spacing:8px;}
+  @keyframes charFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
+
+  .char-expression{
+    font-size:13px;position:absolute;top:-8px;
+    background:white;padding:3px 8px;border-radius:10px;white-space:nowrap;
+    box-shadow:0 2px 6px rgba(0,0,0,.08);font-weight:700;color:#5a4a3a;
+    transform:translateY(-100%);opacity:.9;
+  }
+  .char-shadow{width:48px;height:8px;background:rgba(0,0,0,.07);border-radius:50%;margin-top:2px;}
+
+  /* stats */
+  .stat-panel{padding:14px 20px 10px;display:flex;flex-direction:column;gap:6px;}
+  .stat-row{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#6b5e7a;}
+  .stat-row .stat-icon{font-size:16px;width:22px;text-align:center;}
+  .stat-row .stat-name{width:36px;flex-shrink:0;}
+  .stat-bar-outer{flex:1;height:8px;background:rgba(0,0,0,.06);border-radius:10px;overflow:hidden;}
+  .stat-bar-inner{height:100%;border-radius:10px;transition:width .6s cubic-bezier(.34,1.56,.64,1);}
+  .stat-row .stat-val{width:30px;text-align:right;font-weight:900;color:#4a3d5a;}
+
+  /* tabs */
+  .tabbar{display:flex;gap:4px;padding:6px 20px 0;overflow-x:auto;scrollbar-width:none;}
+  .tabbar::-webkit-scrollbar{display:none;}
+  .tab{
+    flex-shrink:0;padding:9px 15px;border:none;border-radius:20px;
+    font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;
+    background:rgba(0,0,0,.04);color:#8b7e9a;transition:all .25s;white-space:nowrap;
+  }
+  .tab.on{background:linear-gradient(135deg,#9dd9c8,#a8d8ea);color:white;box-shadow:0 3px 12px rgba(157,217,200,.4);}
+
+  /* panels */
+  .panel{display:none;padding:10px 20px 20px;}
+  .panel.on{display:block;}
+
+  /* category section */
+  .cat-title{
+    font-size:11px;font-weight:800;color:#9b8eaa;letter-spacing:.5px;
+    margin:16px 0 8px;display:flex;align-items:center;gap:6px;
+    text-transform:uppercase;
+  }
+  .cat-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(0,0,0,.06),transparent);}
+
+  .train-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+
+  .train-card{
+    background:white;border-radius:14px;padding:11px 10px;
+    cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.04);
+    transition:all .25s;display:flex;flex-direction:column;gap:4px;
+    position:relative;overflow:hidden;border-left:3px solid var(--c,#9dd9c8);
+  }
+  .train-card:active{transform:scale(.94);transition:transform .1s;}
+  .train-card .tc-icon{font-size:24px;}
+  .train-card .tc-label{font-size:11.5px;font-weight:700;color:#4a3d5a;line-height:1.3;}
+  .train-card .tc-info{font-size:9px;color:#9b8eaa;font-weight:600;display:flex;gap:4px;flex-wrap:wrap;margin-top:auto;}
+  .train-card .tc-info span{background:rgba(0,0,0,.04);padding:2px 5px;border-radius:5px;color:#6b5e7a;}
+  .train-card.done{opacity:.4;pointer-events:none;}
+  .train-card .tc-del{
+    position:absolute;top:4px;right:6px;font-size:12px;color:#c4958a;
+    cursor:pointer;z-index:2;opacity:0;transition:opacity .2s;
+  }
+  .train-card:hover .tc-del,.train-card:active .tc-del{opacity:1;}
+  .tc-del:hover{color:#e05050;}
+
+  /* add custom btn */
+  .add-custom{
+    background:rgba(0,0,0,.03);border:2px dashed rgba(0,0,0,.1);
+    border-radius:14px;padding:14px;text-align:center;
+    cursor:pointer;font-size:13px;font-weight:700;color:#9b8eaa;
+    margin-top:8px;transition:all .2s;
+  }
+  .add-custom:active{background:rgba(0,0,0,.06);}
+
+  /* custom form */
+  .custom-form{
+    background:white;border-radius:14px;padding:14px;
+    box-shadow:0 2px 10px rgba(0,0,0,.06);margin-top:8px;display:none;
+  }
+  .custom-form.show{display:block;}
+  .custom-form input,.custom-form select{
+    width:100%;padding:8px 10px;border:2px solid rgba(0,0,0,.08);
+    border-radius:8px;font-family:inherit;font-size:13px;margin-bottom:6px;
+    background:#fafafc;
+  }
+  .custom-form .cf-row{display:flex;gap:6px;}
+  .custom-form .cf-row input{flex:1;}
+  .custom-form button{
+    padding:8px 16px;border:none;border-radius:20px;
+    font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;
+  }
+  .cf-save{background:linear-gradient(135deg,#9dd9c8,#a8d8ea);color:white;}
+  .cf-cancel{background:rgba(0,0,0,.05);color:#8b7e9a;}
+
+  /* shop */
+  .shop-section{margin-top:8px;}
+  .shop-section .ss-title{font-size:11px;font-weight:800;color:#9b8eaa;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;}
+  .shop-item{
+    background:white;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;
+    box-shadow:0 2px 10px rgba(0,0,0,.04);margin-bottom:6px;cursor:pointer;transition:all .2s;
+  }
+  .shop-item:active{transform:scale(.97);}
+  .shop-item.locked{opacity:.4;pointer-events:none;}
+  .shop-item.owned{opacity:.7;border:2px solid #9dd9c8;}
+  .shop-icon{font-size:30px;flex-shrink:0;}
+  .shop-body{flex:1;}
+  .shop-name{font-size:13px;font-weight:700;color:#4a3d5a;}
+  .shop-cost{font-size:10px;color:#9b8eaa;font-weight:600;margin-top:2px;}
+  .shop-effect{font-size:10px;color:#9dd9c8;font-weight:600;}
+  .buy-btn{
+    background:linear-gradient(135deg,#f2c94c,#f7c59f);border:none;border-radius:20px;
+    padding:7px 14px;font-family:inherit;font-size:11px;font-weight:800;color:#7a5500;cursor:pointer;flex-shrink:0;
+  }
+  .buy-btn.owned{background:#e0e0e0;color:#999;}
+
+  /* summary */
+  .ending-card{
+    background:white;border-radius:14px;padding:20px;text-align:center;
+    box-shadow:0 2px 10px rgba(0,0,0,.04);margin-bottom:10px;line-height:1.8;
+  }
+  .today-log{
+    background:white;border-radius:14px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.04);
+  }
+  .log-title{font-size:12px;font-weight:800;color:#9b8eaa;margin-bottom:8px;}
+  .log-row{display:flex;justify-content:space-between;padding:5px 0;font-size:12px;font-weight:600;border-bottom:1px solid rgba(0,0,0,.03);}
+  .log-row:last-child{border:none;}
+
+  /* history */
+  .hist-row{
+    background:white;border-radius:12px;padding:10px 14px;margin-bottom:6px;
+    display:flex;justify-content:space-between;align-items:center;
+    box-shadow:0 1px 8px rgba(0,0,0,.03);font-size:12px;font-weight:600;
+  }
+  .hist-time{font-size:10px;color:#9b8eaa;display:block;}
+
+  /* toast */
+  .toast{
+    position:fixed;bottom:40px;left:50%;transform:translateX(-50%) translateY(80px);
+    background:rgba(45,45,55,.9);color:white;padding:12px 24px;border-radius:30px;
+    font-size:13px;font-weight:700;z-index:999;transition:all .4s cubic-bezier(.34,1.56,.64,1);
+    opacity:0;pointer-events:none;backdrop-filter:blur(12px);white-space:nowrap;
+  }
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+
+  .conf{position:fixed;pointer-events:none;z-index:9999;animation:confFall 1.6s ease-in forwards;font-size:14px;}
+  @keyframes confFall{0%{transform:translateY(0) rotate(0);opacity:1;}100%{transform:translateY(110vh) rotate(720deg);opacity:0;}}
+
+  .reset-link{display:block;text-align:center;margin-top:14px;font-size:11px;color:#c4958a;cursor:pointer;font-weight:600;padding:8px;}
+</style>
+</head>
+<body>
+
+<div class="game">
+
+  <div class="topbar">
+    <span class="week">📅 第 <b id="wN">1</b> 周</span>
+    <span class="gold"><span class="coin">🪙</span> <b id="gN">0</b></span>
+  </div>
+
+  <div class="room">
+    <div class="room-wall"></div><div class="room-floor"></div>
+    <div class="window"></div>
+    <div class="bookshelf" id="books">
+      <span style="background:#e8a0b0;width:70%;"></span>
+      <span style="background:#a0c8e8;width:85%;"></span>
+      <span style="background:#c8a0e0;width:60%;"></span>
+      <span style="background:#a0e0c8;width:75%;"></span>
+    </div>
+    <div class="desk"></div>
+    <div class="character" onclick="poke()">
+      <span class="char-expression" id="cExpr">……呼</span>
+      <div class="char-body" id="cBody">
+        <span class="char-hat" id="cHat"></span>
+        <span class="char-glasses" id="cGlass"></span>
+        <div class="char-eyes"><span class="eye"></span><span class="eye"></span></div>
+        <div class="char-mouth"></div>
+        <div class="char-outfit" id="cOutfit" style="background:transparent;"></div>
+      </div>
+      <div class="char-shadow"></div>
+    </div>
+  </div>
+
+  <div class="stat-panel">
+    <div class="stat-row"><span class="stat-icon">📚</span><span class="stat-name">学习</span><div class="stat-bar-outer"><div class="stat-bar-inner" id="bLearn" style="background:#a8d8ea;width:0%"></div></div><span class="stat-val" id="vLearn">0</span></div>
+    <div class="stat-row"><span class="stat-icon">💪</span><span class="stat-name">健康</span><div class="stat-bar-outer"><div class="stat-bar-inner" id="bHealth" style="background:#9dd9c8;width:0%"></div></div><span class="stat-val" id="vHealth">0</span></div>
+    <div class="stat-row"><span class="stat-icon">⚡</span><span class="stat-name">执行</span><div class="stat-bar-outer"><div class="stat-bar-inner" id="bWill" style="background:#f2c94c;width:0%"></div></div><span class="stat-val" id="vWill">0</span></div>
+    <div class="stat-row"><span class="stat-icon">💖</span><span class="stat-name">幸福</span><div class="stat-bar-outer"><div class="stat-bar-inner" id="bHappy" style="background:#f2a7b3;width:0%"></div></div><span class="stat-val" id="vHappy">0</span></div>
+  </div>
+
+  <div class="tabbar">
+    <button class="tab on" onclick="sw('train')">🎓 训练</button>
+    <button class="tab" onclick="sw('shop')">🏪 商店</button>
+    <button class="tab" onclick="sw('summary')">📋 今日</button>
+    <button class="tab" onclick="sw('history')">📜 足迹</button>
+  </div>
+
+  <div class="panel on" id="p-train"><div id="trainArea"></div></div>
+  <div class="panel" id="p-shop"><div id="shopArea"></div></div>
+  <div class="panel" id="p-summary"><div id="sumArea"></div></div>
+  <div class="panel" id="p-history"><div id="histArea"></div></div>
+  <div style="display:flex;justify-content:center;gap:12px;margin-top:14px;">
+    <span style="font-size:11px;color:#9dd9c8;cursor:pointer;font-weight:600;" onclick="syncNow()">🔄 同步</span>
+    <span style="font-size:11px;color:#9b8eaa;cursor:pointer;font-weight:600;" onclick="exportSave()">📤 导出</span>
+    <span style="font-size:11px;color:#9b8eaa;cursor:pointer;font-weight:600;" onclick="document.getElementById('importFile').click()">📥 导入</span>
+    <span style="font-size:11px;color:#c4958a;cursor:pointer;font-weight:600;" onclick="resetAll()">🔄 重置</span>
+  </div>
+  <input type="file" id="importFile" accept=".json" style="display:none" onchange="importSave(event)">
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATA ──
+const CATEGORIES = [
+  {id:'study',title:'📚 学习成长',color:'#a8d8ea',actions:[
+    {id:'ielts',icon:'📝',label:'学雅思 2小时',s:{learn:8,will:3},g:15,single:true},
+    {id:'vocab',icon:'🗣',label:'背单词/练口语',s:{learn:4,will:2},g:8},
+    {id:'read',icon:'📖',label:'精读教材1章',s:{learn:8,will:5},g:18,single:true},
+    {id:'python',icon:'💻',label:'编程/数据分析',s:{learn:6,will:4},g:12},
+  ]},
+  {id:'phd',title:'🧬 博士准备',color:'#c3b1e1',actions:[
+    {id:'paper',icon:'🔬',label:'读论文+做笔记',s:{learn:7,will:4},g:15},
+    {id:'tms',icon:'🧠',label:'学TMS/神经科学',s:{learn:6,will:3},g:12},
+    {id:'lit_review',icon:'🗂',label:'整理文献综述',s:{learn:5,will:4},g:10},
+    {id:'advisor',icon:'✉️',label:'写邮件/联系导师',s:{will:3},g:5,single:true},
+  ]},
+  {id:'health',title:'🏃 健康身体',color:'#9dd9c8',actions:[
+    {id:'exercise',icon:'🏃',label:'运动30分钟',s:{health:7,will:4,happy:2},g:12},
+    {id:'sleep',icon:'🌙',label:'10:30前睡觉',s:{health:5,will:3,happy:2},g:10,single:true},
+    {id:'water',icon:'💧',label:'喝够8杯水',s:{health:3},g:5,single:true},
+    {id:'cook',icon:'🍳',label:'自己做饭吃',s:{health:4,happy:3},g:8,single:true},
+    {id:'stretch',icon:'🧘',label:'拉伸/冥想',s:{health:3,happy:3},g:6},
+  ]},
+  {id:'life',title:'🧹 生活秩序',color:'#f2c94c',actions:[
+    {id:'clean',icon:'🧹',label:'打扫/整理房间',s:{will:3,happy:2},g:5,single:true},
+    {id:'skincare',icon:'🧴',label:'认真护肤',s:{happy:2},g:3,single:true},
+    {id:'journal',icon:'📓',label:'写日记/复盘',s:{will:3,happy:2},g:5,single:true},
+    {id:'plan_tmr',icon:'📅',label:'规划明日计划',s:{will:2},g:4,single:true},
+  ]},
+  {id:'care',title:'🌱 自我关怀',color:'#f2a7b3',actions:[
+    {id:'walk',icon:'🌸',label:'出门散步/见人',s:{health:3,happy:6,will:2},g:8},
+    {id:'joy',icon:'🎀',label:'做件开心小事',s:{happy:5},g:5},
+    {id:'create',icon:'🎨',label:'画画/创作',s:{happy:5,learn:2},g:6},
+    {id:'read_joy',icon:'📚',label:'休闲阅读',s:{happy:3,learn:2},g:5},
+  ]},
+  {id:'penalty',title:'⚡ 诚实记录',color:'#e88d9e',actions:[
+    {id:'p_late',icon:'🌑',label:'12点后才睡',s:{health:-5,will:-3,happy:-2},g:-8},
+    {id:'p_delivery',icon:'🍔',label:'不必要外卖',s:{health:-3,will:-2},g:-5},
+    {id:'p_couch',icon:'🛋',label:'整天没动',s:{health:-4,will:-3,happy:-2},g:-6},
+    {id:'p_phone',icon:'📱',label:'刷手机3h+',s:{learn:-3,will:-4,happy:-1},g:-8},
+    {id:'p_procras',icon:'⏳',label:'拖延重要事',s:{will:-5,happy:-3},g:-6},
+  ]},
+];
+
+const SHOP_TICKETS = [
+  {id:'s_tea',icon:'🧋',label:'一杯奶茶',cost:50,s:{happy:6}},
+  {id:'s_movie',icon:'🎬',label:'看部电影',cost:40,s:{happy:5}},
+  {id:'s_book',icon:'📗',label:'买本书',cost:80,s:{happy:4,learn:3}},
+  {id:'s_dinner',icon:'🍜',label:'吃顿大餐',cost:100,s:{happy:8,health:2}},
+  {id:'s_gift',icon:'🎁',label:'买件小礼物',cost:120,s:{happy:8}},
+  {id:'s_spa',icon:'💆',label:'护理/按摩',cost:150,s:{happy:7,health:4}},
+  {id:'s_show',icon:'🎵',label:'演出/展览',cost:140,s:{happy:8,learn:2}},
+  {id:'s_trip',icon:'✈️',label:'短途旅行',cost:400,s:{happy:15,learn:3,health:3}},
+];
+
+const OUTFITS = [
+  {id:'o_sailor',icon:'👗',label:'水手服',cost:60,hat:'',glass:'',outfit:'linear-gradient(180deg,#4a7fb5,#3a6090)',eq:'outfit'},
+  {id:'o_pink',icon:'👚',label:'粉色连衣裙',cost:50,hat:'',glass:'',outfit:'linear-gradient(180deg,#f8c8d8,#e8a0b8)',eq:'outfit'},
+  {id:'o_hoodie',icon:'🧥',label:'奶油卫衣',cost:40,hat:'',glass:'',outfit:'linear-gradient(180deg,#f5e8d0,#e8d5b8)',eq:'outfit'},
+  {id:'o_beret',icon:'🎩',label:'贝雷帽',cost:35,hat:'👒',glass:'',outfit:'',eq:'hat'},
+  {id:'o_cap',icon:'🧢',label:'棒球帽',cost:30,hat:'🧢',glass:'',outfit:'',eq:'hat'},
+  {id:'o_glasses',icon:'👓',label:'圆框眼镜',cost:25,hat:'',glass:'👓',outfit:'',eq:'glass'},
+  {id:'o_sunglass',icon:'🕶',label:'墨镜',cost:30,hat:'',glass:'🕶',outfit:'',eq:'glass'},
+  {id:'o_bow',icon:'🎀',label:'蝴蝶结发卡',cost:20,hat:'🎀',glass:'',outfit:'',eq:'hat'},
+];
+
+const EXPRS=[
+  {c:s=>s.learn<10&&s.will<10,t:'……呼'},
+  {c:s=>s.learn>=40&&s.will>=30,t:'今日も頑張る！'},
+  {c:s=>s.happy>=50,t:'うれしい〜'},
+  {c:s=>s.health<15,t:'ちょっと疲れた…'},
+  {c:s=>s.will>=50,t:'やればできる！'},
+  {c:s=>s.learn>=60,t:'博士への道！'},
+  {c:s=>s.happy<10,t:'…さみしい'},
+  {t:'……ん？'},
+];
+
+const ENDS=[
+  {c:s=>s.learn>=80&&s.will>=70&&s.health>=60&&s.happy>=60,ti:'🏆 完美丸子',d:'六边形战士——学习、健康、执行、幸福全部拉满。你把自己养成了最好的样子。'},
+  {c:s=>s.learn>=70&&s.will>=50,ti:'🔬 准科学家',d:'学术属性突飞猛进！TAMU 实验室就是你的游乐场。别忘了偶尔喘口气。'},
+  {c:s=>s.happy>=70&&s.health>=60,ti:'🌻 快乐生活家',d:'在学习和生活之间找到了自己的节奏。这样就很好了。'},
+  {c:s=>s.will>=60,ti:'⚡ 执行力战士',d:'曾经三分钟热度的丸子不见了！说做就做，拖延见了你绕道走。'},
+  {c:s=>s.learn>=40&&s.will>=30,ti:'🌱 稳步成长中',d:'每天前进一点点。可能自己没感觉，但已经走了很远了。'},
+  {ti:'🛌 还在起跑线',d:'没关系，每个人有自己的节奏。明天再来训练一下？'},
+];
+
+function cl(v){return Math.max(0,Math.min(100,v));}
+
+// ── STATE ──
+const SYNC_URL=location.origin.replace('http://','http://').replace(/:\d+$/,'')+':8888';
+function ld(){
+  const D={stats:{learn:0,health:0,will:0,happy:0},gold:0,week:1,done:{},hist:[],last:'',custom:[],owned:[],equipped:{}};
+  try{const r=JSON.parse(localStorage.getItem('mf2')||'{}');return{...D,...r,stats:{...D.stats,...(r.stats||{})},equipped:{...(r.equipped||{})}};}catch{return D;}
+}
+function sv(){localStorage.setItem('mf2',JSON.stringify(S));syncToServer();}
+async function syncToServer(){
+  try{await fetch(SYNC_URL+'/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(S)});}
+  catch(e){}
+}
+async function syncFromServer(){
+  try{
+    const r=await fetch(SYNC_URL+'/load');
+    const serverData=await r.json();
+    if(serverData&&serverData.stats&&serverData.last){
+      const localLast=S.last||'';
+      if(serverData.last>=localLast){
+        S={...S,...serverData,stats:{...S.stats,...(serverData.stats||{})},equipped:{...(serverData.equipped||{})}};
+        sv();
+      }
+    }
+  }catch(e){}
+}
+let S=ld();
+
+function dc(){
+  const t=new Date().toDateString();
+  if(S.last!==t){
+    if(S.last){const y=new Date();y.setDate(y.getDate()-1);if(S.last===y.toDateString()) S.week+=1;}
+    S.done={};S.last=t;sv();
+  }
+}
+
+function renderStats(){
+  ['learn','health','will','happy'].forEach(k=>{
+    const v=cl(S.stats[k]);
+    const K=k.charAt(0).toUpperCase()+k.slice(1);
+    document.getElementById('b'+K).style.width=v+'%';
+    document.getElementById('v'+K).textContent=v;
+  });
+  document.getElementById('gN').textContent=S.gold;
+  document.getElementById('wN').textContent=S.week;
+  const ex=EXPRS.find(e=>e.c?e.c(S.stats):false)||EXPRS[EXPRS.length-1];
+  document.getElementById('cExpr').textContent=ex.t;
+}
+
+function renderChar(){
+  const eq=S.equipped||{};
+  document.getElementById('cHat').textContent=eq.hat||'';
+  document.getElementById('cGlass').textContent=eq.glass||'';
+  document.getElementById('cOutfit').style.background=eq.outfit||'transparent';
+}
+
+// ── TRAINING ──
+function renderTraining(){
+  const A=document.getElementById('trainArea');A.innerHTML='';
+  CATEGORIES.forEach(cat=>{
+    const all=[...cat.actions,...S.custom.filter(x=>x.cat===cat.id)];
+    const d=document.createElement('div');
+    d.innerHTML=`
+      <div class="cat-title">${cat.title}</div>
+      <div class="train-grid" id="grid-${cat.id}"></div>
+    `;
+    A.appendChild(d);
+    if(cat.id!=='penalty'){
+      const add=document.createElement('div');
+      add.className='add-custom';
+      add.textContent='+ 添加自定义训练';
+      add.onclick=()=>showCustomForm(cat.id);
+      A.appendChild(add);
+      const form=document.createElement('div');
+      form.className='custom-form';
+      form.id='form-'+cat.id;
+      form.innerHTML=`
+        <input id="cf-name-${cat.id}" placeholder="训练名称…">
+        <select id="cf-icon-${cat.id}">
+          <option value="📌">📌 标记</option><option value="📝">📝 笔记</option><option value="💡">💡 灵感</option>
+          <option value="🎯">🎯 目标</option><option value="🔥">🔥 挑战</option><option value="🌟">🌟 星星</option>
+          <option value="🎵">🎵 音乐</option><option value="📷">📷 摄影</option><option value="✍️">✍️ 写作</option>
+          <option value="🧩">🧩 拼图</option><option value="🎮">🎮 游戏</option><option value="🍵">🍵 茶歇</option>
+        </select>
+        <div class="cf-row">
+          <input id="cf-learn-${cat.id}" placeholder="学习力" type="number" value="0" style="width:60px;flex:none;">
+          <input id="cf-health-${cat.id}" placeholder="健康" type="number" value="0" style="width:60px;flex:none;">
+          <input id="cf-will-${cat.id}" placeholder="执行" type="number" value="0" style="width:60px;flex:none;">
+          <input id="cf-happy-${cat.id}" placeholder="幸福" type="number" value="3" style="width:60px;flex:none;">
+        </div>
+        <input id="cf-gold-${cat.id}" placeholder="金币" type="number" value="5">
+        <button class="cf-save" onclick="saveCustom('${cat.id}')">保存</button>
+        <button class="cf-cancel" onclick="hideCustomForm('${cat.id}')">取消</button>
+      `;
+      A.appendChild(form);
+    }
+    const grid=document.getElementById('grid-'+cat.id);
+    grid.innerHTML=all.map(a=>{
+      const done=S.done[a.id]||0;
+      const isCustom=!!a._custom;
+      return `<div class="train-card${done>0&&a.single?' done':''}" style="--c:${cat.color}" onclick="train('${a.id}')">
+        ${isCustom?`<span class="tc-del" onclick="event.stopPropagation();delCustom('${a.id}')">✕</span>`:''}
+        <span class="tc-icon">${a.icon}</span>
+        <span class="tc-label">${a.label}</span>
+        <div class="tc-info">
+          ${Object.entries(a.s||{}).filter(([,v])=>v!==0).map(([k,v])=>`<span>${({learn:'📚',health:'💪',will:'⚡',happy:'💖'})[k]}${v>0?'+':''}${v}</span>`).join('')}
+          <span>🪙${a.g>0?'+':''}${a.g}</span>
+        </div>
+      </div>`;
+    }).join('');
+  });
+}
+
+function showCustomForm(cat){document.getElementById('form-'+cat).classList.add('show');}
+function hideCustomForm(cat){document.getElementById('form-'+cat).classList.remove('show');}
+
+function saveCustom(cat){
+  const name=document.getElementById('cf-name-'+cat).value.trim();
+  if(!name){toast('请输入名称～');return;}
+  const icon=document.getElementById('cf-icon-'+cat).value;
+  const s={
+    learn:parseInt(document.getElementById('cf-learn-'+cat).value)||0,
+    health:parseInt(document.getElementById('cf-health-'+cat).value)||0,
+    will:parseInt(document.getElementById('cf-will-'+cat).value)||0,
+    happy:parseInt(document.getElementById('cf-happy-'+cat).value)||0,
+  };
+  const g=parseInt(document.getElementById('cf-gold-'+cat).value)||5;
+  const id='cust_'+Date.now();
+  S.custom.push({id,icon,label:name,s,g,cat,_custom:true});
+  sv();
+  hideCustomForm(cat);
+  renderTraining();
+  toast('自定义训练已添加 ✨');
+}
+
+function delCustom(id){
+  if(!confirm('删除这个自定义训练？')) return;
+  S.custom=S.custom.filter(x=>x.id!==id);
+  sv();renderTraining();
+}
+
+// ── SHOP ──
+function renderShop(){
+  const A=document.getElementById('shopArea');A.innerHTML='';
+  // Tickets
+  const d1=document.createElement('div');
+  d1.className='shop-section';
+  d1.innerHTML='<div class="ss-title">🛍 快乐兑换券</div>';
+  d1.innerHTML+=SHOP_TICKETS.map(s=>{
+    const ok=S.gold>=s.cost;
+    return `<div class="shop-item${ok?'':' locked'}">
+      <span class="shop-icon">${s.icon}</span><div class="shop-body">
+      <div class="shop-name">${s.label}</div><div class="shop-cost">🪙 ${s.cost}</div>
+      ${s.s?`<div class="shop-effect">${Object.entries(s.s).map(([k,v])=>`${({learn:'📚',health:'💪',happy:'💖'})[k]}+${v}`).join(' ')}</div>`:''}
+      </div><button class="buy-btn" onclick="buyTicket('${s.id}')" ${ok?'':'disabled'}>${ok?'购买':'不够'}</button>
+    </div>`;
+  }).join('');
+  A.appendChild(d1);
+  // Outfits
+  const d2=document.createElement('div');
+  d2.className='shop-section';
+  d2.innerHTML='<div class="ss-title">👗 丸子衣柜</div>';
+  d2.innerHTML+=OUTFITS.map(o=>{
+    const owned=S.owned&&S.owned.includes(o.id);
+    const equipped=S.equipped&&S.equipped[o.eq]===(o.hat||o.glass||o.outfit);
+    const ok=!owned&&S.gold>=o.cost;
+    return `<div class="shop-item${owned?' owned':''}${!owned&&!ok?' locked':''}">
+      <span class="shop-icon">${o.icon}</span><div class="shop-body">
+      <div class="shop-name">${o.label}${equipped?' ⭐':''}${owned?' ✓':''}</div>
+      <div class="shop-cost">🪙 ${o.cost}</div>
+      </div>
+      ${owned?`<button class="buy-btn${equipped?' owned':''}" onclick="equip('${o.id}')">${equipped?'已装备':'穿上'}</button>`
+      :`<button class="buy-btn" onclick="buyOutfit('${o.id}')" ${ok?'':'disabled'}>${ok?'购买':'不够'}</button>`}
+    </div>`;
+  }).join('');
+  A.appendChild(d2);
+}
+
+function buyTicket(id){
+  const s=SHOP_TICKETS.find(x=>x.id===id);if(!s||S.gold<s.cost) return;
+  if(!confirm(`花 ${s.cost}🪙 买「${s.label}」？`)) return;
+  S.gold-=s.cost;
+  Object.entries(s.s||{}).forEach(([k,v])=>{S.stats[k]=cl((S.stats[k]||0)+v);});
+  S.hist.push({icon:s.icon,label:'买：'+s.label,good:true,gold:-s.cost,time:now()});
+  sv();toast(`${s.icon} 兑换成功！`);confetti();renderAll();
+}
+
+function buyOutfit(id){
+  const o=OUTFITS.find(x=>x.id===id);if(!o||S.gold<o.cost) return;
+  if(!confirm(`花 ${o.cost}🪙 买「${o.label}」？`)) return;
+  S.gold-=o.cost;S.owned=S.owned||[];S.owned.push(id);
+  S.hist.push({icon:o.icon,label:'买：'+o.label,good:true,gold:-o.cost,time:now()});
+  sv();toast(`${o.icon} 购买成功！`);confetti();renderAll();
+}
+
+function equip(id){
+  const o=OUTFITS.find(x=>x.id===id);if(!o) return;
+  S.equipped=S.equipped||{};
+  if(o.outfit) S.equipped.outfit=o.outfit;
+  if(o.hat) S.equipped.hat=o.hat;
+  if(o.glass) S.equipped.glass=o.glass;
+  sv();toast(`${o.icon} 穿上了！`);renderAll();renderChar();
+}
+
+// ── SUMMARY ──
+function renderSummary(){
+  const ending=ENDS.find(e=>e.c?e.c(S.stats):false)||ENDS[ENDS.length-1];
+  document.getElementById('sumArea').innerHTML=`
+    <div class="ending-card">
+      <div style="font-size:36px;margin-bottom:8px;">${ending.ti.slice(0,2)}</div>
+      <div style="font-size:15px;font-weight:900;color:#4a3d5a;margin-bottom:4px;">${ending.ti}</div>
+      <div style="font-size:12px;color:#9b8eaa;font-weight:600;">${ending.d}</div>
+    </div>
+    <div class="today-log">
+      <div class="log-title">⏱ 今日训练记录</div>
+      <div id="logList"></div>
+    </div>`;
+  const all=[...CATEGORIES.flatMap(c=>c.actions),...S.custom];
+  const items=[];all.forEach(a=>{const n=S.done[a.id]||0;if(n>0) items.push({...a,count:n});});
+  const ll=document.getElementById('logList');
+  if(!items.length){ll.innerHTML='<div style="text-align:center;color:#9b8eaa;padding:12px;font-size:12px;font-weight:600;">今天还没有训练哦 🌱</div>';}
+  else{ll.innerHTML=items.map(i=>`<div class="log-row"><span>${i.icon} ${i.label}${i.count>1?` ×${i.count}`:''}</span><span style="color:#9dd9c8;font-weight:800;">完成</span></div>`).join('');}
+}
+
+function renderHistory(){
+  const items=[...(S.hist||[])].reverse().slice(0,40);
+  document.getElementById('histArea').innerHTML=!items.length
+    ?'<div style="text-align:center;color:#9b8eaa;padding:20px;font-size:13px;font-weight:600;">还没有任何记录 👣</div>'
+    :items.map(h=>`<div class="hist-row"><div><span>${h.icon} ${h.label}</span><span class="hist-time">${h.time}</span></div><span style="font-weight:800;color:${h.good?'#9dd9c8':'#e88d9e'}">${h.good?'+'+h.gold:h.gold}</span></div>`).join('');
+}
+
+// ── TRAIN ──
+function now(){return new Date().toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+
+function train(id){
+  const all=[...CATEGORIES.flatMap(c=>c.actions),...S.custom];
+  const a=all.find(x=>x.id===id);if(!a) return;
+  if(a.single&&(S.done[id]||0)>0) return;
+  S.done[id]=(S.done[id]||0)+1;
+  S.gold+=a.g||0;
+  Object.entries(a.s||{}).forEach(([k,v])=>{S.stats[k]=cl((S.stats[k]||0)+v);});
+  S.hist.push({icon:a.icon,label:a.label,good:(a.g||0)>=0,gold:a.g,time:now()});
+  sv();toast(a.g<0?`${a.icon} 诚实记录…`:`${a.icon} 训练完成！`);
+  if(a.g>=0) confetti();
+  renderAll();
+}
+
+// ── SWITCH ──
+function sw(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.getElementById('p-'+id).classList.add('on');
+  event.target.classList.add('on');
+  if(id==='summary') renderSummary();
+  if(id==='history') renderHistory();
+  if(id==='shop') renderShop();
+}
+
+// ── TOAST ──
+let tt;
+function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),2400);}
+
+function confetti(){
+  const cols=['#9dd9c8','#f2c94c','#f2a7b3','#a8d8ea','#c3b1e1','#f7c59f'];
+  const shapes=['●','◆','▲','♥','★'];
+  for(let i=0;i<14;i++){const d=document.createElement('div');d.className='conf';d.textContent=shapes[Math.floor(Math.random()*shapes.length)];d.style.cssText=`left:${Math.random()*100}vw;top:-10px;color:${cols[Math.floor(Math.random()*cols.length)]};animation-delay:${Math.random()*.4}s;animation-duration:${1.2+Math.random()*1}s;`;document.body.appendChild(d);setTimeout(()=>d.remove(),2500);}
+}
+
+const POKES=['丸子頑張って！','今天训练了吗？','摸摸头～','你超棒的！','博士への道！','累了就休息哦','又在偷偷厉害呢','记得喝水💧'];
+let pi=0;function poke(){toast(POKES[pi%POKES.length]);pi++;}
+
+function resetAll(){if(!confirm('重新开始？所有数据清空。')) return;localStorage.removeItem('mf2');S=ld();renderAll();toast('新しい旅 🌱');}
+
+function exportSave(){
+  const data=JSON.stringify(S,null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='maruko_save_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();toast('存档已导出 📤');
+}
+function importSave(e){
+  const file=e.target.files[0];if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(){
+    try{
+      const data=JSON.parse(reader.result);
+      if(!data.stats||!('gold' in data)){toast('文件不对哦 ⚠️');return;}
+      if(!confirm('导入存档会覆盖当前数据，确认？')) return;
+      S=data;sv();renderAll();toast('存档导入成功！💾');
+    }catch{toast('文件损坏了 ⚠️');}
+  };
+  reader.readAsText(file);e.target.value='';
+}
+function syncNow(){syncToServer().then(()=>syncFromServer()).then(()=>{renderAll();toast('同步完成 🔄');}).catch(()=>toast('同步失败，不在同一网络 ⚠️'));}
+function renderAll(){renderStats();renderChar();renderTraining();renderShop();renderSummary();renderHistory();}
+dc();renderAll();syncFromServer().then(()=>renderAll());
+</script>
+</body>
+</html>
