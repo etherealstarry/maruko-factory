@@ -279,12 +279,9 @@
   <div style="display:flex;justify-content:center;gap:12px;margin-top:14px;">
     <span style="font-size:11px;color:#9dd9c8;cursor:pointer;font-weight:600;" onclick="syncNow()">🔄 同步</span>
     <span style="font-size:11px;color:#a8d8ea;cursor:pointer;font-weight:600;" onclick="location.href=location.href.split('?')[0]+'?v='+Date.now()">🔃 刷新</span>
-    <span style="font-size:11px;color:#9b8eaa;cursor:pointer;font-weight:600;" onclick="exportSave()">📤 导出</span>
-    <span style="font-size:11px;color:#9b8eaa;cursor:pointer;font-weight:600;" onclick="document.getElementById('importFile').click()">📥 导入</span>
     <span style="font-size:11px;color:#c4958a;cursor:pointer;font-weight:600;" onclick="resetAll()">🔄 重置</span>
     <span style="font-size:11px;color:#8b7e9a;cursor:pointer;font-weight:600;" onclick="showHiddenPanel()">👁 恢复隐藏</span>
   </div>
-  <input type="file" id="importFile" accept=".json" style="display:none" onchange="importSave(event)">
 </div>
 
 <div class="toast" id="toast"></div>
