@@ -389,6 +389,9 @@ function ld(){
 function sv(){localStorage.setItem('mf2',JSON.stringify(S));debounceSync();}
 function debounceSync(){clearTimeout(_syncTimer);_syncTimer=setTimeout(syncToServer,800);}
 async function syncToServer(){
+  // 空数据不推送，防止覆盖服务器上的真实进度
+  const tp=S.stats.learn+S.stats.health+S.stats.will+S.stats.happy;
+  if(S.gold===0&&tp===0&&Object.keys(S.done||{}).length===0) return;
   S._syncedAt=Date.now();
   const body=JSON.stringify(S);
   const T=window._ST;
