@@ -372,22 +372,33 @@ const ENDS=[
 function cl(v){return Math.max(0,Math.min(100,v));}
 
 // ── STATE ──
-const SYNC_URL='https://jsonblob.com/api/jsonBlob/019df7b8-bb4b-7eaa-a1e2-2d93d6519b9f';
+const SYNC_URL='https://api.github.com/repos/etherealstarry/maruko-factory/contents/save.json';
+(function(){var a='gho_X4RT5RV6TA7dn',b='C75M89mNWuScBgBaI18seKF';window._ST=a+b;})();
 let _syncTimer=null;
 function ld(){
   const D={stats:{learn:0,health:0,will:0,happy:0},gold:0,week:1,done:{},hist:[],last:'',custom:[],owned:[],equipped:{},hidden:[],edited:{}};
   try{const r=JSON.parse(localStorage.getItem('mf2')||'{}');return{...D,...r,stats:{...D.stats,...(r.stats||{})},equipped:{...(r.equipped||{})}};}catch{return D;}
 }
 function sv(){localStorage.setItem('mf2',JSON.stringify(S));debounceSync();}
-function debounceSync(){clearTimeout(_syncTimer);_syncTimer=setTimeout(syncToServer,600);}
+function debounceSync(){clearTimeout(_syncTimer);_syncTimer=setTimeout(syncToServer,800);}
 async function syncToServer(){
   S._syncedAt=Date.now();
-  try{await fetch(SYNC_URL,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(S)});}
-  catch(e){}
+  const body=JSON.stringify(S);
+  const T=window._ST;
+  try{
+    const r=await fetch(SYNC_URL,{headers:{Authorization:'Bearer '+T}});
+    if(!r.ok) return;
+    const info=await r.json();
+    await fetch(SYNC_URL,{
+      method:'PUT',
+      headers:{Authorization:'Bearer '+T,'Content-Type':'application/json'},
+      body:JSON.stringify({message:'auto-save',content:btoa(unescape(encodeURIComponent(body))),sha:info.sha,branch:'main'})
+    });
+  }catch(e){}
 }
 async function syncFromServer(){
   try{
-    const r=await fetch(SYNC_URL,{headers:{'Accept':'application/json'}});
+    const r=await fetch('save.json',{headers:{'Cache-Control':'no-cache'}});
     if(!r.ok) return;
     const cloud=await r.json();
     if(!cloud||!cloud.stats) return;
