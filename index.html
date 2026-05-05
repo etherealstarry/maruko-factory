@@ -586,7 +586,7 @@ function renderShop(){
       <div class="shop-name">${o.label}${equipped?' ⭐':''}${owned?' ✓':''}</div>
       <div class="shop-cost">🪙 ${o.cost}</div>
       </div>
-      ${owned?`<button class="buy-btn${equipped?' owned':''}" onclick="equip('${o.id}')">${equipped?'已装备':'穿上'}</button>`
+      ${owned?`<button class="buy-btn${equipped?' owned':''}" onclick="equip('${o.id}')">${equipped?'卸下':'穿上'}</button>`
       :`<button class="buy-btn" onclick="buyOutfit('${o.id}')" ${ok?'':'disabled'}>${ok?'购买':'不够'}</button>`}
     </div>`;
   }).join('');
@@ -613,10 +613,18 @@ function buyOutfit(id){
 function equip(id){
   const o=OUTFITS.find(x=>x.id===id);if(!o) return;
   S.equipped=S.equipped||{};
-  if(o.outfit) S.equipped.outfit=o.outfit;
-  if(o.hat) S.equipped.hat=o.hat;
-  if(o.glass) S.equipped.glass=o.glass;
-  sv();toast(`${o.icon} 穿上了！`);renderAll();renderChar();
+  const eqKey=o.eq;
+  const eqVal=o.hat||o.glass||o.outfit;
+  const isEquipped=S.equipped[eqKey]===eqVal;
+  if(isEquipped){
+    S.equipped[eqKey]='';
+    toast(`${o.icon} 卸下了～`);sv();renderAll();renderChar();
+  } else {
+    if(o.outfit) S.equipped.outfit=o.outfit;
+    if(o.hat) S.equipped.hat=o.hat;
+    if(o.glass) S.equipped.glass=o.glass;
+    toast(`${o.icon} 穿上了！`);sv();renderAll();renderChar();
+  }
 }
 
 // ── SUMMARY ──
