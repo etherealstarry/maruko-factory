@@ -54,7 +54,26 @@
   .char-mouth{position:absolute;top:40px;left:50%;transform:translateX(-50%);width:10px;height:5px;border-bottom:2px solid #d4957a;border-radius:0 0 6px 6px;pointer-events:none;z-index:2;}
   @keyframes blink{0%,95%,100%{transform:scaleY(1);}97%{transform:scaleY(.1);}}
   .char-hat{position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:22px;pointer-events:none;transition:all .4s;}
-  .char-glasses{position:absolute;top:21px;left:50%;transform:translateX(-50%);font-size:18px;pointer-events:none;transition:all .4s;letter-spacing:8px;z-index:3;line-height:1;}
+  .char-glasses{
+    position:absolute;top:18px;left:50%;transform:translateX(-50%);
+    width:40px;height:20px;z-index:3;pointer-events:none;transition:all .4s;
+  }
+  .char-glasses::before,.char-glasses::after{content:'';position:absolute;display:none;
+    width:19px;height:19px;border-radius:50%;top:0;}
+  .char-glasses::before{left:0;}
+  .char-glasses::after{right:0;}
+  /* round glasses */
+  .char-glasses.has-glasses::before,.char-glasses.has-glasses::after{
+    display:block;border:2.5px solid #4a3525;
+    background:rgba(180,210,240,.12);}
+  /* sunglasses */
+  .char-glasses.has-sunglasses::before,.char-glasses.has-sunglasses::after{
+    display:block;border:2.5px solid #1a1a2e;
+    background:rgba(20,20,40,.7);}
+  /* bridge between lenses */
+  /* bridge */
+  .char-glasses.has-glasses{border-top:2px solid #4a3525;margin-top:1px;}
+  .char-glasses.has-sunglasses{border-top:2px solid #1a1a2e;margin-top:1px;}
   @keyframes charFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
 
   .char-expression{
@@ -438,7 +457,11 @@ function renderStats(){
 function renderChar(){
   const eq=S.equipped||{};
   document.getElementById('cHat').textContent=eq.hat||'';
-  document.getElementById('cGlass').textContent=eq.glass||'';
+  const g=document.getElementById('cGlass');
+  g.className='char-glasses';
+  if(eq.glass==='👓') g.classList.add('has-glasses');
+  else if(eq.glass==='🕶') g.classList.add('has-sunglasses');
+  g.textContent='';
   document.getElementById('cOutfit').style.background=eq.outfit||'transparent';
 }
 
