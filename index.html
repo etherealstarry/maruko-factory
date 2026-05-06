@@ -805,6 +805,7 @@ function importSave(e){
   reader.readAsText(file);e.target.value='';
 }
 function syncNow(){syncToServer().then(()=>syncFromServer()).then(()=>{renderAll();toast('☁️ 同步完成');}).catch(()=>toast('网络不太好，稍后重试 ⚠️'));}
+document.addEventListener('visibilitychange',()=>{document.hidden?syncToServer():syncFromServer().then(()=>renderAll());});
 function renderAll(){renderStats();renderChar();renderTraining();renderShop();renderSummary();renderHistory();}
 dc();renderAll();syncFromServer().then(()=>renderAll());
 </script>
